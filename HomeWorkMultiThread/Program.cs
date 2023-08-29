@@ -3,21 +3,23 @@
     internal class Program
     {
         static SemaphoreSlim barberRdy = new SemaphoreSlim(0);
-        static SemaphoreSlim customerRdy = new SemaphoreSlim(0);
+        static AutoResetEvent haircutFinish = new AutoResetEvent(false);
         static int waitingCustomers = 0;
         static readonly int maxSeats = 5;
-        static int customer = 0;
+        static int currentCustomer = 1;
+        
+        
 
         static void Main(string[] args)
         {
             Thread barberThread = new Thread(Barber);
             barberThread.Start();
 
-            for(int i = 1; i <= maxSeats; i++)
+            for(int i = 1; i <= 10; i++)
             {
                 Thread customerThread = new Thread(Customer);
                 customerThread.Start(i);
-                Thread.Sleep(3000);//пауза между приходом клиентов
+                Thread.Sleep(1000);//пауза между приходом клиентов
             }
 
             Console.ReadLine();
@@ -27,38 +29,44 @@
         {
             while (true)
             {
-                Console.WriteLine("Барбер спит...");
-                barberRdy.Wait();
+                if(waitingCustomers == 0)
+                {
+                    Console.WriteLine("Барбер спит...");
+                    Console.WriteLine($"Барбера разбудил клиент {currentCustomer}");
+                }
                 
+                barberRdy.Wait();                
 
-                Console.WriteLine($"Барбер стрижет: {customer} клиента");
-                Thread.Sleep(1000);//віделяем время на стрижку
+                Console.WriteLine($"Барбер стрижет клиента: {currentCustomer}\n");
+                Thread.Sleep(2000);//віделяем время на стрижку
+                
+                Console.WriteLine($"Барбер закончил стрижку клиенту: {currentCustomer}\n");
+                currentCustomer++;
 
-                Console.WriteLine($"Барбер закончил стрижку {customer} клиенту");
-
-                customerRdy.Release();//клиент понимает что стрижка закончилась
+                haircutFinish.Set();//клиент понимает что стрижка закончилась
             }
         }
 
         static void Customer(object customerNumber)
         {
-            customer = (int)customerNumber;
+            int customer = (int)customerNumber;
 
             if(waitingCustomers < maxSeats)
             {
-                Console.WriteLine($"Клиент {customer} вошел в барбершоп");
+                Console.WriteLine($"Клиент {customer} вошел в барбершоп\n");
                 waitingCustomers++;
 
-                barberRdy.Release();//будим барбера
-                Console.WriteLine($"Барбера разбудил {customer} клиент");
+                barberRdy.Release();//будим барбера               
 
-                customerRdy.Wait();//ждем стрижку
-                Console.WriteLine($"Клиент {customer} очень доволен стрижкой и уходит из барбершопа");
+                haircutFinish.WaitOne();//ждем стрижку
+                
+
+                Console.WriteLine($"Клиент {customer} очень доволен стрижкой и уходит из барбершопа\n");
                 waitingCustomers--;
             }
             else
             {
-                Console.WriteLine($"Для клиента {customer} нет свободных кресел ");
+                Console.WriteLine($"Для клиента {customer} нет свободных кресел и он ушел(((\n");
             }
         }
     }
